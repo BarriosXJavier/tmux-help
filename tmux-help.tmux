@@ -24,17 +24,15 @@ set_bindings() {
   help_key=$(tmux_get_option "@tmux-help-key" "$default_help_key")
   search_key=$(tmux_get_option "@tmux-help-search-key" "$default_search_key")
 
-  # Bind help key to show the help menu
   tmux bind-key "$help_key" run-shell "$CURRENT_DIR/scripts/tmux-help.sh"
-  
-  # Bind search key to prompt for a search term and run the search script
   tmux bind-key "$search_key" command-prompt -p "Search for:" "run-shell \"$CURRENT_DIR/scripts/tmux-help.sh '%%'"
 }
 
 main() {
   set_bindings
-  # Ensure scripts are executable
+  # Ensure both scripts are executable
   chmod +x "$CURRENT_DIR/scripts/tmux-help.sh"
+  chmod +x "$CURRENT_DIR/plugin/tmux-help.sh"
 }
 
 main
