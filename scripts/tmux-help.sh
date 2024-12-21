@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# Store content in a variable for full display and searching
 HELP_CONTENT=$(cat << 'EOF'
   Sessions:prefix=Ctrl+b
   PREFIX s|List sessions
@@ -49,8 +50,8 @@ HELP_CONTENT=$(cat << 'EOF'
 EOF
 )
 
-# Display help 
 show_tmux_help() {
+    # Use a pager if available, preferring less, then more, then cat as fallback
     if command -v less >/dev/null 2>&1; then
         echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/' | less -RFX
     elif command -v more >/dev/null 2>&1; then
