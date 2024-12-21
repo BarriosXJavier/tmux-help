@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-# Store content in a variable for full display and searching
 HELP_CONTENT=$(cat << 'EOF'
   Sessions:prefix=Ctrl+b
   PREFIX s|List sessions
@@ -51,7 +50,6 @@ EOF
 )
 
 show_tmux_help() {
-    # Use a pager if available, preferring less, then more, then cat as fallback
     if command -v less >/dev/null 2>&1; then
         echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/' | less -RFX
     elif command -v more >/dev/null 2>&1; then
@@ -70,6 +68,7 @@ search_commands() {
     display_results() {
         if [ "$result_count" -eq 0 ]; then
             echo "No matches found for: $search_term"
+            return 0
         else
             echo "Found $result_count matches for: $search_term"
             echo "===================="
@@ -104,7 +103,6 @@ check_tmux_env() {
 main() {
     check_tmux_env
 
-    # Handle empty search terms
     if [ $# -eq 0 ]; then
         show_tmux_help
     elif [ -z "$1" ]; then
@@ -116,5 +114,5 @@ main() {
 }
 
 set -e
-trap 'echo "An error occurred. Please report this issue."' ERR
 main "$@"
+
