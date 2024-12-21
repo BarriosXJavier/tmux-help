@@ -33,7 +33,8 @@ set_bindings() {
 
 main() {
   set_bindings
+  # Ensure scripts are executable
+  chmod +x "$CURRENT_DIR/scripts/tmux-help.sh"
 }
 
 main
-
