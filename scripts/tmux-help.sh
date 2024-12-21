@@ -60,14 +60,40 @@ RED=$(tput setaf 1)
 
 section_colors=("$CYAN" "$GREEN" "$YELLOW" "$MAGENTA" "$BLUE" "$RED")
 
+explanations=(
+    "Sessions allow you to manage multiple tmux instances simultaneously."
+    "Windows act like tabs within a tmux session, letting you run multiple commands."
+    "Panes split your terminal into sections for multitasking within a window."
+    "Copy mode enables you to scroll back and copy text from the terminal."
+    "Miscellaneous commands include clock display, keybinding lists, and more."
+)
+
+print_box() {
+    local content="$1"
+    local border_color="$2"
+    local width="$3"
+    local horizontal_border
+    printf -v horizontal_border "%${width}s" ""
+    horizontal_border=$(echo "$horizontal_border" | sed "s/ /─/g")
+
+    echo -e "${border_color}┌${horizontal_border}┐${RESET}"
+    echo -e "$content" | awk -v pad="$width" -v color="$border_color" '{ printf "%s│ %-" pad "s │\n", color, $0 }'
+    echo -e "${border_color}└${horizontal_border}┘${RESET}"
+}
+
 show_tmux_help() {
     local section_index=0
-    local formatted_help
+    local explanation_index=0
+    local width=$(tput cols)
+    width=$((width - 4))
 
     while IFS= read -r line; do
         if [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
-            echo -e "\n${section_colors[section_index]}${BOLD}${line%%:*}${RESET}"
+            local section_name="${line%%:*}"
+            local border_color="${section_colors[section_index]}"
+            print_box "$(echo -e "${BOLD}${section_name}${RESET}\n${explanations[explanation_index]}")" "$border_color" "$width"
             section_index=$(( (section_index + 1) % ${#section_colors[@]} ))
+            explanation_index=$((explanation_index + 1))
         else
             echo "$line" | sed 's/|/ - /g'
         fi
