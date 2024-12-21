@@ -59,6 +59,8 @@ EOF
     BLUE=$'\e[38;2;97;175;239m'
     RED=$'\e[38;2;224;108;117m'
     GRAY=$'\e[38;2;92;99;112m'
+    ORANGE=$'\e[38;2;255;160;102m'
+    SOFT_GREEN=$'\e[38;2;170;219;170m'
 } || {
     BOLD=$(tput bold)
     RESET=$(tput sgr0)
@@ -69,6 +71,8 @@ EOF
     BLUE=$(tput setaf 4)
     RED=$(tput setaf 1)
     GRAY=$(tput setaf 8)
+    ORANGE=$YELLOW
+    SOFT_GREEN=$GREEN
 }
 
 section_colors=("$CYAN" "$GREEN" "$YELLOW" "$MAGENTA" "$BLUE" "$RED")
@@ -98,7 +102,7 @@ wrap_text() {
         fi
     done
     [[ -n "$line" ]] && wrapped+="\n$line"
-    echo "$wrapped"
+    echo -e "$wrapped"
 }
 
 print_box() {
@@ -125,6 +129,17 @@ print_box() {
     echo
 }
 
+format_command() {
+    local line="$1"
+    if [[ "$line" =~ ^PREFIX ]]; then
+        echo "$line" | sed -E "s/PREFIX ([^ |]+)\|(.*)/PREFIX ${ORANGE}\1${RESET} ${GRAY}→${RESET} \2/"
+    elif [[ "$line" =~ ^tmux ]]; then
+        echo "$line" | sed -E "s/(tmux[^ |]+)\|(.*)/${SOFT_GREEN}\1${RESET} ${GRAY}→${RESET} \2/"
+    else
+        echo "$line" | sed -E "s/^([^|]+)\|(.*)/${ORANGE}\1${RESET} ${GRAY}→${RESET} \2/"
+    fi
+}
+
 display_results() {
     local search_term="$1"
     local current_section=""
@@ -148,9 +163,7 @@ display_results() {
             fi
         elif [[ "$line" =~ \| ]] && [[ "${line,,}" =~ ${search_term_lower} ]]; then
             [[ "$results" != *"$current_section"* ]] && results+="\n$current_section\n"
-            local cmd="${line%%|*}"
-            local desc="${line#*|}"
-            results+="${BOLD}$cmd${RESET} ${GRAY}→${RESET} $desc\n"
+            results+="$(format_command "$line")\n"
             ((match_count++))
         fi
     done <<< "$HELP_CONTENT"
@@ -183,7 +196,7 @@ show_help() {
             section_index=$(( (section_index + 1) % ${#section_colors[@]} ))
             explanation_index=$((explanation_index + 1))
         else
-            echo "$line" | sed -E "s/^([^|]+)\|(.*)/${BOLD}\1${RESET} ${GRAY}→${RESET} \2/"
+            format_command "$line"
         fi
     done <<< "$HELP_CONTENT"
 }
