@@ -108,7 +108,7 @@ search_commands() {
     local section_index=0
 
     highlight_term() {
-        echo "$1" | sed "s/$search_term/${BOLD}${RED}&${RESET}/Ig"
+        echo "$1" | sed "s/\($search_term\)/${BOLD}${RED}\1${RESET}/Ig"
     }
 
     while IFS= read -r line; do
@@ -148,11 +148,11 @@ main() {
         echo -e "${BOLD}${UNDERLINE}Tmux Help Menu${RESET}"
         echo
         show_tmux_help
-    elif [ -z "$1" ]; then
+    elif [[ -n "$1" ]]; then
+        search_commands "$1"
+    else
         echo -e "${RED}Error: Search term cannot be empty${RESET}"
         exit 1
-    else
-        search_commands "$1"
     fi
 }
 
