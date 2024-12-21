@@ -31,8 +31,8 @@ set_bindings() {
 main() {
   set_bindings
   # Ensure both scripts are executable
-  chmod +x "$CURRENT_DIR/scripts/tmux-help.sh"
-  chmod +x "$CURRENT_DIR/plugin/tmux-help.sh"
+  chmod u+x "$CURRENT_DIR/scripts/tmux-help.sh"
+  chmod u+x "$CURRENT_DIR/plugin/tmux-help.sh"
 }
 
 main
