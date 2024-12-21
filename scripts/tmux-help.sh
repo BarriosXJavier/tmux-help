@@ -49,13 +49,20 @@ HELP_CONTENT=$(cat << 'EOF'
 EOF
 )
 
+BOLD=$(tput bold)
+UNDERLINE=$(tput smul)
+RESET=$(tput sgr0)
+CYAN=$(tput setaf 6)
+GREEN=$(tput setaf 2)
+RED=$(tput setaf 1)
+
 show_tmux_help() {
+    local formatted_help
+    formatted_help=$(echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/')
     if command -v less >/dev/null 2>&1; then
-        echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/' | less -RFX
-    elif command -v more >/dev/null 2>&1; then
-        echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/' | more
+        echo -e "$formatted_help" | less -RFX
     else
-        echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/'
+        echo -e "$formatted_help"
     fi
 }
 
@@ -63,25 +70,37 @@ search_commands() {
     local search_term="$1"
     local results=""
     local current_section=""
+    local match_count=0
+
+    highlight_term() {
+        echo "$1" | sed "s/$search_term/${BOLD}${RED}&${RESET}/g"
+    }
 
     while IFS= read -r line; do
         if [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
             current_section="${line%%:*}"
         elif [[ "$line" =~ \| ]] && [[ "$line" =~ $search_term ]]; then
-            results+="[$current_section] ${line/|/ - }\n"
+            results+="$(printf "${CYAN}[%-10s]${RESET} %s\n" "$current_section" "$(highlight_term "${line/|/ - }")")"
+            ((match_count++))
         fi
     done <<< "$HELP_CONTENT"
 
-    if [[ -z "$results" ]]; then
-        echo "No matches found for: $search_term"
+    if [[ $match_count -eq 0 ]]; then
+        echo -e "${RED}No matches found for: ${search_term}${RESET}"
     else
-        echo -e "Matches for: $search_term\n====================\n$results" | less -RFX
+        echo -e "${GREEN}Found $match_count matches for: ${search_term}${RESET}"
+        echo -e "==============================\n"
+        if command -v less >/dev/null 2>&1; then
+            echo -e "$results" | less -RFX
+        else
+            echo -e "$results"
+        fi
     fi
 }
 
 check_tmux_env() {
     if [ -z "$TMUX" ]; then
-        echo "Error: This script must be run from within a tmux session."
+        echo -e "${RED}Error: This script must be run from within a tmux session.${RESET}"
         exit 1
     fi
 }
@@ -90,9 +109,11 @@ main() {
     check_tmux_env
 
     if [ $# -eq 0 ]; then
+        echo -e "${BOLD}${UNDERLINE}Tmux Help Menu${RESET}"
+        echo
         show_tmux_help
     elif [ -z "$1" ]; then
-        echo "Error: Search term cannot be empty"
+        echo -e "${RED}Error: Search term cannot be empty${RESET}"
         exit 1
     else
         search_commands "$1"
@@ -101,3 +122,4 @@ main() {
 
 set -e
 main "$@"
+
