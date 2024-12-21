@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-# Store content in a variable for full display and searching
 HELP_CONTENT=$(cat << 'EOF'
   Sessions:prefix=Ctrl+b
   PREFIX s|List sessions
@@ -11,7 +10,6 @@ HELP_CONTENT=$(cat << 'EOF'
   tmux new -s name|Create new named session
   tmux ls|List all sessions
   tmux a -t name|Attach to named session
-
   Windows:prefix=Ctrl+b
   PREFIX c|Create new window
   PREFIX ,|Rename window
@@ -20,7 +18,6 @@ HELP_CONTENT=$(cat << 'EOF'
   PREFIX w|List windows
   PREFIX &|Kill window
   PREFIX 0-9|Switch to window number
-
   Panes:prefix=Ctrl+b
   PREFIX %|Split pane vertically
   PREFIX "|Split pane horizontally
@@ -35,7 +32,6 @@ HELP_CONTENT=$(cat << 'EOF'
   PREFIX q|Show pane numbers
   PREFIX !|Break pane into new window
   PREFIX +|Create pane with current path
-
   Copy_Mode:prefix=Ctrl+b
   PREFIX [|Enter copy mode
   Space|Start selection
@@ -45,7 +41,6 @@ HELP_CONTENT=$(cat << 'EOF'
   ?|Search backward
   n|Next search match
   N|Previous search match
-
   Misc:prefix=Ctrl+b
   PREFIX t|Show clock
   PREFIX ?|List all keybindings
@@ -54,49 +49,71 @@ HELP_CONTENT=$(cat << 'EOF'
 EOF
 )
 
-# Display help in a neat format
+# Display help 
 show_tmux_help() {
-    if command -v less > /dev/null; then
-        echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/' | less -R
+    if command -v less >/dev/null 2>&1; then
+        echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/' | less -RFX
+    elif command -v more >/dev/null 2>&1; then
+        echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/' | more
     else
         echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/'
     fi
 }
 
-# Search through commands
 search_commands() {
     local search_term="$1"
     local current_section=""
-    echo "Searching for: $search_term"
-    echo "===================="
-    echo
+    local results=""
+    local result_count=0
 
-    echo "$HELP_CONTENT" | while IFS= read -r line; do
+    display_results() {
+        if [ "$result_count" -eq 0 ]; then
+            echo "No matches found for: $search_term"
+        else
+            echo "Found $result_count matches for: $search_term"
+            echo "===================="
+            echo
+            if command -v less >/dev/null 2>&1; then
+                echo "$results" | less -RFX
+            else
+                echo "$results"
+            fi
+        fi
+    }
+
+    while IFS= read -r line; do
         if [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
-            # This is a section header
             current_section="${line%%:*}"
         elif [[ "$line" =~ \| ]] && [[ "${line,,}" == *"${search_term,,}"* ]]; then
-            # If line contains the search term (case insensitive)
-            printf "%-15s %s\n" "[$current_section]" "${line/|/ - }"
+            results+="$(printf "%-15s %s\n" "[$current_section]" "${line/|/ - }")"
+            ((result_count++))
         fi
-    done | less -R
+    done <<< "$HELP_CONTENT"
+
+    display_results
 }
 
-# Main script
-main() {
-    if [ -n "$TMUX" ]; then
-        if [ $# -eq 0 ]; then
-            # No arguments, show full help
-            show_tmux_help
-        else
-            # Search mode
-            search_commands "$1"
-        fi
-    else
-        echo "This script should be run from within a tmux session."
+check_tmux_env() {
+    if [ -z "$TMUX" ]; then
+        echo "Error: This script must be run from within a tmux session."
         exit 1
     fi
 }
 
-# Ensure the script runs
+main() {
+    check_tmux_env
+
+    # Handle empty search terms
+    if [ $# -eq 0 ]; then
+        show_tmux_help
+    elif [ -z "$1" ]; then
+        echo "Error: Search term cannot be empty"
+        exit 1
+    else
+        search_commands "$1"
+    fi
+}
+
+set -e
+trap 'echo "An error occurred. Please report this issue."' ERR
 main "$@"
