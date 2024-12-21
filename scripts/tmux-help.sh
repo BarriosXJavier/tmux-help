@@ -61,36 +61,22 @@ show_tmux_help() {
 
 search_commands() {
     local search_term="$1"
-    local current_section=""
     local results=""
-    local result_count=0
-
-    display_results() {
-        if [ "$result_count" -eq 0 ]; then
-            echo "No matches found for: $search_term"
-            return 0
-        else
-            echo "Found $result_count matches for: $search_term"
-            echo "===================="
-            echo
-            if command -v less >/dev/null 2>&1; then
-                echo "$results" | less -RFX
-            else
-                echo "$results"
-            fi
-        fi
-    }
+    local current_section=""
 
     while IFS= read -r line; do
         if [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
             current_section="${line%%:*}"
-        elif [[ "$line" =~ \| ]] && [[ "${line,,}" == *"${search_term,,}"* ]]; then
-            results+="$(printf "%-15s %s\n" "[$current_section]" "${line/|/ - }")"
-            ((result_count++))
+        elif [[ "$line" =~ \| ]] && [[ "$line" =~ $search_term ]]; then
+            results+="[$current_section] ${line/|/ - }\n"
         fi
     done <<< "$HELP_CONTENT"
 
-    display_results
+    if [[ -z "$results" ]]; then
+        echo "No matches found for: $search_term"
+    else
+        echo -e "Matches for: $search_term\n====================\n$results" | less -RFX
+    fi
 }
 
 check_tmux_env() {
@@ -115,4 +101,3 @@ main() {
 
 set -e
 main "$@"
-
