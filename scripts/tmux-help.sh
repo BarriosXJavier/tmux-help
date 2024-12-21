@@ -50,37 +50,47 @@ EOF
 )
 
 BOLD=$(tput bold)
-UNDERLINE=$(tput smul)
 RESET=$(tput sgr0)
 CYAN=$(tput setaf 6)
 GREEN=$(tput setaf 2)
+YELLOW=$(tput setaf 3)
+MAGENTA=$(tput setaf 5)
+BLUE=$(tput setaf 4)
 RED=$(tput setaf 1)
 
+section_colors=("$CYAN" "$GREEN" "$YELLOW" "$MAGENTA" "$BLUE" "$RED")
+
 show_tmux_help() {
+    local section_index=0
     local formatted_help
-    formatted_help=$(echo "$HELP_CONTENT" | sed 's/|/ - /g' | sed 's/:prefix=Ctrl+b/\n&/')
-    if command -v less >/dev/null 2>&1; then
-        echo -e "$formatted_help" | less -RFX
-    else
-        echo -e "$formatted_help"
-    fi
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
+            echo -e "\n${section_colors[section_index]}${BOLD}${line%%:*}${RESET}"
+            section_index=$(( (section_index + 1) % ${#section_colors[@]} ))
+        else
+            echo "$line" | sed 's/|/ - /g'
+        fi
+    done <<< "$HELP_CONTENT"
 }
 
 search_commands() {
     local search_term="$1"
-    local results=""
     local current_section=""
+    local results=""
     local match_count=0
+    local section_index=0
 
     highlight_term() {
-        echo "$1" | sed "s/$search_term/${BOLD}${RED}&${RESET}/g"
+        echo "$1" | sed "s/$search_term/${BOLD}${RED}&${RESET}/Ig"
     }
 
     while IFS= read -r line; do
         if [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
-            current_section="${line%%:*}"
+            current_section="${section_colors[section_index]}${BOLD}${line%%:*}${RESET}"
+            section_index=$(( (section_index + 1) % ${#section_colors[@]} ))
         elif [[ "$line" =~ \| ]] && [[ "$line" =~ $search_term ]]; then
-            results+="$(printf "${CYAN}[%-10s]${RESET} %s\n" "$current_section" "$(highlight_term "${line/|/ - }")")"
+            results+="$(printf "%s\n%s\n" "$current_section" "$(highlight_term "${line/|/ - }")")"
             ((match_count++))
         fi
     done <<< "$HELP_CONTENT"
