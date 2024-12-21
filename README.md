@@ -2,13 +2,6 @@
 
 A searchable tmux cheatsheet plugin that provides quick access to tmux commands, keybindings, and options.
 
-## Features
-
-- Organized sections for Sessions, Windows, Panes, and Copy Mode
-- Interactive search functionality
-- Easy to use keybindings
-- Section-based organization
-
 ## Installation
 
 ### Using TPM (recommended)
