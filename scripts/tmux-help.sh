@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 HELP_CONTENT=$(cat << 'EOF'
-  Sessions:prefix=Ctrl+b
+ Sessions:prefix=Ctrl+b
   PREFIX s|List sessions
   PREFIX d|Detach from session
   PREFIX $|Rename session
@@ -19,8 +19,8 @@ HELP_CONTENT=$(cat << 'EOF'
   PREFIX &|Kill window
   PREFIX 0-9|Switch to window number
   Panes:prefix=Ctrl+b
-  PREFIX %|Split pane vertically
-  PREFIX "|Split pane horizontally
+  PREFIX %|Split pane horizontally
+  PREFIX "|Split pane vertically
   PREFIX ←↑↓→|Switch to pane in direction
   PREFIX o|Next pane
   PREFIX ;|Last active pane
@@ -31,6 +31,8 @@ HELP_CONTENT=$(cat << 'EOF'
   PREFIX }|Move pane right
   PREFIX q|Show pane numbers
   PREFIX !|Break pane into new window
+  PREFIX M-1 to M-5|Set pane layout
+  PREFIX C-Up/Down/Left/Right|Resize pane
   PREFIX +|Create pane with current path
   Copy_Mode:prefix=Ctrl+b
   PREFIX [|Enter copy mode
@@ -46,6 +48,7 @@ HELP_CONTENT=$(cat << 'EOF'
   PREFIX ?|List all keybindings
   PREFIX :|Command prompt
   PREFIX r|Reload tmux config
+  PREFIX ~|View messages
 EOF
 )
 
