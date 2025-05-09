@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 HELP_CONTENT=$(cat << 'EOF'
 Sessions:prefix=Ctrl+b
  PREFIX s|List sessions
@@ -48,14 +47,13 @@ Copy_Mode:prefix=Ctrl+b
  ?|Search backward
  n|Next search match
  N|Previous search match
-
-PREFIX ]|Paste buffer
-PREFIX =|Choose buffer to paste
-PREFIX #|List buffers
-tmux show-buffer|Show last copied buffer
-tmux save-buffer file|Save buffer to file
-tmux delete-buffer|Delete the top buffer
-
+Paste_Mode:prefix=Ctrl+b
+  PREFIX ]|Paste buffer
+  PREFIX =|Choose buffer to paste
+  PREFIX #|List buffers
+  tmux show-buffer|Show last copied buffer
+  tmux save-buffer file|Save buffer to file
+  tmux delete-buffer|Delete the top buffer
 Misc:prefix=Ctrl+b
  PREFIX t|Show clock
  PREFIX ?|List all keybindings
@@ -103,6 +101,7 @@ declare -A EXPLANATIONS=(
     ["Windows"]="Windows are like tabs, multiple views in one session"
     ["Panes"]="Panes divide windows into multiple viewports"
     ["Copy_Mode"]="Copy mode for scrolling, searching, and copying text"
+    ["Paste_Mode"]="Paste mode"
     ["Misc"]="Additional utilities and configuration commands"
 )
 
@@ -169,9 +168,15 @@ display_results() {
     local section_index=0
     local width=$(($(tput cols) - 4))
     local search_term_lower=$(echo "$search_term" | tr '[:upper:]' '[:lower:]')
-
+    
     echo -e "\n${COLORS[BOLD]}${COLORS[BLUE]}┏━━━ Results ━━━┓${COLORS[RESET]}\n"
-
+    
+    # Check if search term is empty
+    if [[ -z "$search_term" ]]; then
+        echo -e "${COLORS[RED]}No search term provided${COLORS[RESET]}\n"
+        return 0
+    fi
+    
     while IFS= read -r line; do
         if [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
             current_section="${section_colors[section_index]}${COLORS[BOLD]}${line%%:*}${COLORS[RESET]}"
@@ -190,17 +195,22 @@ display_results() {
     done <<< "$HELP_CONTENT"
     
     if ((match_count == 0)); then
-        echo -e "${COLORS[RED]}No matches found${COLORS[RESET]}\n"
+        echo -e "${COLORS[RED]}No matches found for: '$search_term'${COLORS[RESET]}\n"
         echo -e "${COLORS[GRAY]}Try:${COLORS[RESET]}"
         echo -e "${COLORS[BLUE]}pane window session split switch break kill attach${COLORS[RESET]}"
+        return 0
     else
         if command -v fzf >/dev/null 2>&1; then
-            # Use fzf for fuzzy search
-            echo -e "$results" | fzf --ansi --preview "echo {}" --preview-window=up:10:wrap
+            # Use fzf for fuzzy search - safely handle potential failures
+            echo -e "$results" | fzf --ansi --preview "echo {}" --preview-window=up:10:wrap || {
+                # If fzf fails for any reason, fall back to regular output
+                echo -e "$results"
+            }
         else
             # Fallback if fzf is not installed
             echo -e "$results"
         fi
+        return 0
     fi
 }
 
@@ -222,11 +232,12 @@ show_help() {
     done <<< "$HELP_CONTENT"
 }
 
+# Check if running inside tmux
 [[ -z "$TMUX" ]] && { echo -e "${COLORS[RED]}Run this inside tmux${COLORS[RESET]}"; exit 1; }
 
+# Main execution
 if [[ $# -eq 0 ]]; then
     show_help
 else
     display_results "$1"
 fi
-
