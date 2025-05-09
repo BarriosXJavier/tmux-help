@@ -156,9 +156,9 @@ display_results() {
     local section_index=0
     local width=$(($(tput cols) - 4))
     local search_term_lower=$(echo "$search_term" | tr '[:upper:]' '[:lower:]')
-    
+
     echo -e "\n${COLORS[BOLD]}${COLORS[BLUE]}┏━━━ Results ━━━┓${COLORS[RESET]}\n"
-    
+
     while IFS= read -r line; do
         if [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
             current_section="${section_colors[section_index]}${COLORS[BOLD]}${line%%:*}${COLORS[RESET]}"
@@ -181,9 +181,11 @@ display_results() {
         echo -e "${COLORS[GRAY]}Try:${COLORS[RESET]}"
         echo -e "${COLORS[BLUE]}pane window session split switch break kill attach${COLORS[RESET]}"
     else
-        if command -v less >/dev/null 2>&1; then
-            echo -e "$results" | less -RFX
+        if command -v fzf >/dev/null 2>&1; then
+            # Use fzf for fuzzy search
+            echo -e "$results" | fzf --ansi --preview "echo {}" --preview-window=up:10:wrap
         else
+            # Fallback if fzf is not installed
             echo -e "$results"
         fi
     fi
@@ -214,3 +216,4 @@ if [[ $# -eq 0 ]]; then
 else
     display_results "$1"
 fi
+
