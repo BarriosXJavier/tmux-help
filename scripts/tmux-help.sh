@@ -10,6 +10,11 @@ Sessions:prefix=Ctrl+b
  tmux new -s name|Create new named session
  tmux ls|List all sessions
  tmux a -t name|Attach to named session
+ tmux kill-server|Kill all sessions and exit
+ tmux kill-session -t name|Kill a specific session
+ tmux rename-session -t old new|Rename a session
+ tmux switch -t name|Switch to another session
+ tmux move-session -t dst|Move session to another tmux server
 Windows:prefix=Ctrl+b
  PREFIX c|Create new window
  PREFIX ,|Rename window
@@ -43,6 +48,14 @@ Copy_Mode:prefix=Ctrl+b
  ?|Search backward
  n|Next search match
  N|Previous search match
+
+PREFIX ]|Paste buffer
+PREFIX =|Choose buffer to paste
+PREFIX #|List buffers
+tmux show-buffer|Show last copied buffer
+tmux save-buffer file|Save buffer to file
+tmux delete-buffer|Delete the top buffer
+
 Misc:prefix=Ctrl+b
  PREFIX t|Show clock
  PREFIX ?|List all keybindings
