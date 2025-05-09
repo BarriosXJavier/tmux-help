@@ -160,6 +160,7 @@ format_command() {
     fi
 }
 
+
 display_results() {
     local search_term="$1"
     local current_section=""
@@ -167,7 +168,6 @@ display_results() {
     local match_count=0
     local section_index=0
     local width=$(($(tput cols) - 4))
-    local search_term_lower=$(echo "$search_term" | tr '[:upper:]' '[:lower:]')
     
     echo -e "\n${COLORS[BOLD]}${COLORS[BLUE]}┏━━━ Results ━━━┓${COLORS[RESET]}\n"
     
@@ -177,67 +177,141 @@ display_results() {
         return 0
     fi
     
+    # Convert to lowercase and create pattern variants
+    local search_term_lower=$(echo "$search_term" | tr '[:upper:]' '[:lower:]')
+    local search_words=($search_term_lower)
+    
     while IFS= read -r line; do
+        local line_lower=$(echo "$line" | tr '[:upper:]' '[:lower:]')
+        local matched=false
+        
         if [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
             current_section="${section_colors[section_index]}${COLORS[BOLD]}${line%%:*}${COLORS[RESET]}"
             section_index=$(( (section_index + 1) % ${#section_colors[@]} ))
             
-            if [[ "${line,,}" =~ ${search_term_lower} ]]; then
+            # Check if section name matches any search word
+            for word in "${search_words[@]}"; do
+                if [[ "$line_lower" =~ $word ]]; then
+                    matched=true
+                    break
+                fi
+            done
+            
+            if [[ "$matched" == true ]]; then
                 results+="$current_section\n"
                 results+="${COLORS[GRAY]}All commands in this section${COLORS[RESET]}\n\n"
                 ((match_count++))
             fi
-        elif [[ "$line" =~ \| ]] && [[ "${line,,}" =~ ${search_term_lower} ]]; then
-            [[ "$results" != *"$current_section"* ]] && results+="\n$current_section\n"
-            results+="$(format_command "$line")\n"
-            ((match_count++))
+        elif [[ "$line" =~ \| ]]; then
+            matched=false
+            
+            # Check if line matches any search word
+            for word in "${search_words[@]}"; do
+                if [[ "$line_lower" =~ $word ]]; then
+                    matched=true
+                    break
+                fi
+            done
+            
+            # Try partial matching for command keys
+            if [[ "$matched" == false && "$line" =~ PREFIX ]]; then
+                local cmd_part=$(echo "$line" | sed -E 's/PREFIX ([^ |]+)\|.*/\1/')
+                local cmd_lower=$(echo "$cmd_part" | tr '[:upper:]' '[:lower:]')
+                
+                for word in "${search_words[@]}"; do
+                    if [[ "$cmd_lower" =~ $word || "$word" =~ ^${cmd_lower:0:1} ]]; then
+                        matched=true
+                        break
+                    fi
+                done
+            fi
+            
+            # Try description-based matching
+            if [[ "$matched" == false ]]; then
+                local desc_part=$(echo "$line" | sed -E 's/.*\|(.*)/\1/')
+                local desc_lower=$(echo "$desc_part" | tr '[:upper:]' '[:lower:]')
+                
+                for word in "${search_words[@]}"; do
+                    local related_terms=""
+                    
+                    # Add related terms based on common tmux concepts
+                    case "$word" in
+                        "split") related_terms="%|\"" ;;
+                        "copy") related_terms="buffer|yank|clipboard" ;;
+                        "move") related_terms="switch|nav|{|}|resize" ;;
+                        "window") related_terms="win|pane" ;;
+                        "session") related_terms="sess|attach|detach" ;;
+                        "nav"*) related_terms="switch|move|←|↑|↓|→" ;;
+                    esac
+                    
+                    if [[ "$desc_lower" =~ $word || (-n "$related_terms" && "$desc_lower" =~ $related_terms) ]]; then
+                        matched=true
+                        break
+                    fi
+                done
+            fi
+            
+            if [[ "$matched" == true ]]; then
+                [[ "$results" != *"$current_section"* ]] && results+="\n$current_section\n"
+                results+="$(format_command "$line")\n"
+                ((match_count++))
+            fi
         fi
     done <<< "$HELP_CONTENT"
     
     if ((match_count == 0)); then
-        echo -e "${COLORS[RED]}No matches found for: '$search_term'${COLORS[RESET]}\n"
-        echo -e "${COLORS[GRAY]}Try:${COLORS[RESET]}"
-        echo -e "${COLORS[BLUE]}pane window session split switch break kill attach${COLORS[RESET]}"
-        return 0
+        # Try fuzzy search as a fallback
+        local fuzzy_results=""
+        local fuzzy_count=0
+        
+        while IFS= read -r line; do
+            if [[ "$line" =~ \| ]]; then
+                local line_lower=$(echo "$line" | tr '[:upper:]' '[:lower:]')
+                local search_chars=$(echo "$search_term_lower" | grep -o .)
+                local all_chars_match=true
+                
+                for char in $search_chars; do
+                    if [[ ! "$line_lower" =~ $char ]]; then
+                        all_chars_match=false
+                        break
+                    fi
+                done
+                
+                if [[ "$all_chars_match" == true ]]; then
+                    local section_name=""
+                    if [[ "$fuzzy_results" != *"$current_section"* ]]; then
+                        section_name="$current_section\n"
+                    fi
+                    fuzzy_results+="$section_name$(format_command "$line")\n"
+                    ((fuzzy_count++))
+                fi
+            elif [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
+                current_section="${section_colors[section_index]}${COLORS[BOLD]}${line%%:*}${COLORS[RESET]}"
+                section_index=$(( (section_index + 1) % ${#section_colors[@]} ))
+            fi
+        done <<< "$HELP_CONTENT"
+        
+        if ((fuzzy_count > 0)); then
+            echo -e "${COLORS[YELLOW]}No exact matches. Showing fuzzy results:${COLORS[RESET]}\n"
+            echo -e "$fuzzy_results"
+            return 0
+        else
+            echo -e "${COLORS[RED]}No matches found for: '$search_term'${COLORS[RESET]}\n"
+            echo -e "${COLORS[GRAY]}Try these common terms:${COLORS[RESET]}"
+            echo -e "${COLORS[BLUE]}pane window session split switch break kill attach list rename copy mode${COLORS[RESET]}"
+            return 0
+        fi
     else
-        if command -v fzf >/dev/null 2>&1; then
-            # Use fzf for fuzzy search - safely handle potential failures
+        if command -v fzf >/dev/null 2>&1 && [[ "$match_count" -gt 5 ]]; then
+            # Use fzf only if we have many results
             echo -e "$results" | fzf --ansi --preview "echo {}" --preview-window=up:10:wrap || {
                 # If fzf fails for any reason, fall back to regular output
                 echo -e "$results"
             }
         else
-            # Fallback if fzf is not installed
+            # Direct output for fewer results or no fzf
             echo -e "$results"
         fi
         return 0
     fi
 }
-
-show_help() {
-    local section_index=0
-    local width=$(($(tput cols) - 4))
-    
-    echo -e "\n${COLORS[BOLD]}${COLORS[BLUE]}tmux commands${COLORS[RESET]}\n"
-    
-    while IFS= read -r line; do
-        if [[ "$line" =~ :prefix=Ctrl\+b$ ]]; then
-            local section_name="${line%%:*}"
-            local border_color="${section_colors[section_index]}"
-            print_box "$(echo -e "${COLORS[BOLD]}${section_name}${COLORS[RESET]}\n${EXPLANATIONS[$section_name]}")" "$border_color" "$width"
-            section_index=$(( (section_index + 1) % ${#section_colors[@]} ))
-        else
-            format_command "$line"
-        fi
-    done <<< "$HELP_CONTENT"
-}
-
-# Check if running inside tmux
-[[ -z "$TMUX" ]] && { echo -e "${COLORS[RED]}Run this inside tmux${COLORS[RESET]}"; exit 1; }
-
-# Main execution
-if [[ $# -eq 0 ]]; then
-    show_help
-else
-    display_results "$1"
-fi
